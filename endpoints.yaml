@@ -2,55 +2,86 @@
 worlddetails:
   version:
     "1.9":
-      params:
+      parameters:
         - includeRegions
         - countryID
         - leagueID
-      fields:
-        League:
+      schema:
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
+          - LeagueList:
+              League:
+                - LeagueID: int
+                - LeagueName: str
+                - Season: int
+                - SeasonOffset: int
+                - MatchRound: int
+                - ShortName: str
+                - Continent: str
+                - ZoneName: str
+                - EnglishName: str
+                - LanguageId: int
+                - LanguageName: str
+                - Country:
+                    Country:
+                      - CountryID: int
+                      - CountryName: str
+                      - CurrencyName: str
+                      - CurrencyRate: float
+                      - CountryCode: str
+                      - DateFormat: str
+                      - TimeFormat: str
+                - Cups:
+                    Cup:
+                      - CupID: int
+                      - CupName: str
+                      - CupLeagueLevel: int
+                      - CupLevel: int
+                      - CupLevelIndex: int
+                      - MatchRound: int
+                      - MatchRoundsLeft: int
+                - NationalTeamId: int
+                - U20teamId: int
+                - ActiveTeams: int
+                - ActiveUsers: int
+                - WaitingUsers: int
+                - TrainingDate: str
+                - EconomyDate: str
+                - CupMatchDate: str
+                - SeriesMatchDate: str
+                - Sequence1: str
+                - Sequence2: str
+                - Sequence3: str
+                - Sequence5: str
+                - Sequence7: str
+                - NumberOfLevels: int
+
+# League Levels endpoint
+leaguelevels:
+  version:
+    "1.0":
+      parameters:
+        - LeagueID
+      schema:
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
           - LeagueID: int
-          - LeagueName: str
           - Season: int
-          - SeasonOffset: int
-          - MatchRound: int
-          - ShortName: str
-          - Continent: str
-          - ZoneName: str
-          - EnglishName: str
-          - LanguageId: int
-          - LanguageName: str
-          - Country: list
-          - Cups: list
-          - NationalTeamId: int
-          - U20teamId: int
-          - ActiveTeams: int
-          - ActiveUsers: int
-          - WaitingUsers: int
-          - TrainingDate: str
-          - EconomyDate: str
-          - CupMatchDate: str
-          - SeriesMatchDate: str
-          - Sequence1: str
-          - Sequence2: str
-          - Sequence3: str
-          - Sequence5: str
-          - Sequence7: str
-          - NumberOfLevels: int
-      collections:
-        Country:
-          - Available: bool
-          - CountryID: int
-          - CountryName: str
-          - CurrencyName: str
-          - CurrencyRate: float
-          - CountryCode: str
-          - DateFormat: str
-          - TimeFormat: str
-        Cups:
-          - CupID: int
-          - CupName: str
-          - CupLeagueLevel: int
-          - CupLevel: int
-          - CupLevelIndex: int
-          - MatchRound: int
-          - MatchRoundsLeft: int
+          - NrOfLeagueLevels: int
+          - LeagueLevelList:
+              LeagueLevelItem:
+                - LeagueLevel: int
+                - NrOfLeagueLevelUnits: int
+                - LeagueLevelUnitIdList: str
+                - NrOfTeams: int
+                - NrOfSharedPromotionSlotsPerSeries: int
+                - NrOfDirectPromotionSlotsPerSeries: int
+                - NrOfQualificationPromotionSlotsPerSeries: int
+                - NrOfDirectDemotionSlotsPerSeries: int
+                - NrOfQualificationDemotionSlotsPerSeries: int
