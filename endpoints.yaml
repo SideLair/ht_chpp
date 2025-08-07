@@ -121,3 +121,83 @@ leaguedetails:
                 - Won: int
                 - Draws: int
                 - Lost: int
+
+# Manager Compendium endpoint
+managercompendium:
+  version:
+    "1.5":
+      parameters:
+        - userId
+      schema:
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
+          - Manager:
+              Manager:
+                - UserId: int
+                - Loginname: str
+                - SupporterTier: str
+                - LastLogins:
+                    LoginTime:
+                      - LoginTime: str
+                - Language:
+                    Language:
+                      - LanguageId: int
+                      - LanguageName: str
+                - Country:
+                    Country:
+                      - CountryId: int
+                      - CountryName: str
+                - Currency:
+                    Currency:
+                      - CurrencyName: str
+                      - CurrencyRate: float
+                - Teams:
+                    Team:
+                      - TeamId: int
+                      - TeamName: str
+                      - Arena:
+                          Arena:
+                            - ArenaId: int
+                            - ArenaName: str
+                      - League:
+                          League:
+                            - LeagueId: int
+                            - LeagueName: str
+                            - Season: int
+                      - Country:
+                          Country:
+                            - CountryId: int
+                            - CountryName: str
+                      - LeagueLevelUnit:
+                          LeagueLevelUnit:
+                            - LeagueLevelUnitId: int
+                            - LeagueLevelUnitName: str
+                      - Region:
+                          Region:
+                            - RegionId: int
+                            - RegionName: str
+                      - YouthTeam:
+                          YouthTeam:
+                            - YouthTeamId: int
+                            - YouthTeamName: str
+                            - YouthLeague:
+                                YouthLeague:
+                                  - YouthLeagueId: int
+                                  - YouthLeagueName: str
+                - NationalTeamCoach:
+                    NationalTeam:
+                      - NationalTeamId: int
+                      - NationalTeamName: str
+                - NationalTeamAssistant:
+                    NationalTeam:
+                      - NationalTeamId: int
+                      - NationalTeamName: str
+                - Avatar:
+                    Avatar:
+                      - BackgroundImage: str
+                      - Layer:
+                          Layer:
+                            - Image: str

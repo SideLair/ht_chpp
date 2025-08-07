@@ -12,6 +12,13 @@ A Python library for Hattrick API with YAML configuration and OAuth authenticati
 - **Unified response structure** - All endpoints return HattrickData with metadata
 - **Nested schema definition** - XML structure directly mapped in YAML
 
+## Available Endpoints
+
+- **worlddetails** (v1.9) - League and country information
+- **leaguelevels** (v1.0) - League level structure
+- **leaguedetails** (v1.6) - League table and team statistics
+- **managercompendium** (v1.5) - Manager profile and team details
+
 ## Installation
 
 ### Development installation
@@ -86,6 +93,22 @@ league_details = call_endpoint('leaguedetails', leagueLevelUnitID=11323, token=t
 print(f"League: {league_details[0]['LeagueName']}")
 print(f"Teams: {len(league_details[0]['Team'])} teams")
 
+### Manager Information
+
+```python
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
+# Get manager compendium (uses latest version automatically)
+manager = call_endpoint('managercompendium', token=token, oauth=oauth)
+print(f"Manager: {manager[0]['Manager'][0]['Loginname']}")
+print(f"Team: {manager[0]['Manager'][0]['Teams'][0]['TeamName']}")
+print(f"Country: {manager[0]['Manager'][0]['Country'][0]['CountryName']}")
+
+# Get manager compendium for specific user
+manager = call_endpoint('managercompendium', userId=123456, token=token, oauth=oauth)
+```
+
 ### Parallel API Calls
 
 ```python
@@ -99,14 +122,16 @@ results = call_endpoints_multithread([
     ('worlddetails', {}),
     ('worlddetails', {'leagueID': 1}),
     ('leaguelevels', {'LeagueID': 1}),
-    ('leaguedetails', {'leagueLevelUnitID': 11323})
+    ('leaguedetails', {'leagueLevelUnitID': 11323}),
+    ('managercompendium', {})
 ], token=token, oauth=oauth)
 
 # Custom number of workers
 results = call_endpoints_multithread([
     ('worlddetails', {}),
     ('leaguelevels', {'LeagueID': 1}),
-    ('leaguedetails', {'leagueLevelUnitID': 11323})
+    ('leaguedetails', {'leagueLevelUnitID': 11323}),
+    ('managercompendium', {})
 ], token=token, oauth=oauth, max_workers=10)
 ```
 
