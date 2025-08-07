@@ -85,3 +85,39 @@ leaguelevels:
                 - NrOfQualificationPromotionSlotsPerSeries: int
                 - NrOfDirectDemotionSlotsPerSeries: int
                 - NrOfQualificationDemotionSlotsPerSeries: int
+
+# League Details endpoint
+leaguedetails:
+  version:
+    "1.6":
+      parameters:
+        - leagueLevelUnitID
+      schema:
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
+          - LeagueID: int
+          - LeagueName: str
+          - LeagueLevel: int
+          - MaxLevel: int
+          - LeagueLevelUnitID: int
+          - LeagueLevelUnitName: str
+          - CurrentMatchRound: int
+          - Rank: int
+          # bloody ht api discrepency
+          - Team:
+              Team:
+                - UserId: int
+                - TeamID: int
+                - TeamName: str
+                - Position: int
+                - PositionChange: int
+                - Matches: int
+                - GoalsFor: int
+                - GoalsAgainst: int
+                - Points: int
+                - Won: int
+                - Draws: int
+                - Lost: int

@@ -80,7 +80,11 @@ print(f"League: {league[0]['LeagueList'][0]['LeagueName']}")
 # Get league levels for Sweden
 league_levels = call_endpoint('leaguelevels', LeagueID=1, token=token, oauth=oauth)
 print(f"League has {len(league_levels[0]['LeagueLevelList'])} levels")
-```
+
+# Get details for specific league unit
+league_details = call_endpoint('leaguedetails', leagueLevelUnitID=11323, token=token, oauth=oauth)
+print(f"League: {league_details[0]['LeagueName']}")
+print(f"Teams: {len(league_details[0]['Team'])} teams")
 
 ### Parallel API Calls
 
@@ -94,13 +98,15 @@ oauth, token = get_ht_oauth()
 results = call_endpoints_multithread([
     ('worlddetails', {}),
     ('worlddetails', {'leagueID': 1}),
-    ('leaguelevels', {'LeagueID': 1})
+    ('leaguelevels', {'LeagueID': 1}),
+    ('leaguedetails', {'leagueLevelUnitID': 11323})
 ], token=token, oauth=oauth)
 
 # Custom number of workers
 results = call_endpoints_multithread([
     ('worlddetails', {}),
-    ('leaguelevels', {'LeagueID': 1})
+    ('leaguelevels', {'LeagueID': 1}),
+    ('leaguedetails', {'leagueLevelUnitID': 11323})
 ], token=token, oauth=oauth, max_workers=10)
 ```
 
