@@ -100,15 +100,24 @@ def parse_nested_structure(element, field_definitions):
             try:
                 if isinstance(field_config, dict):
                     # Nested structure (e.g., LeagueList: { League: [...] })
-                    nested_element = element.find(field_name)
-                    if nested_element is not None:
-                        # Get the nested object type (e.g., 'League' from { League: [...] })
-                        nested_object_type = list(field_config.keys())[0]
-                        nested_object_definitions = field_config[nested_object_type]
-                        
-                        # Check if this is a single object (like Country) or a list
+                    nested_object_type = list(field_config.keys())[0]
+                    nested_object_definitions = field_config[nested_object_type]
+                    
+                    # Check if there are multiple elements of this type directly under parent
+                    # This handles cases like multiple <Team> elements under <HattrickData>
+                    direct_elements = element.findall(field_name)
+                    if len(direct_elements) > 1:
+                        # Multiple elements - treat as collection
+                        nested_objects = []
+                        for nested_obj in direct_elements:
+                            parsed_nested_obj = parse_nested_structure(nested_obj, nested_object_definitions)
+                            nested_objects.append(parsed_nested_obj)
+                        parsed_obj[field_name] = nested_objects
+                    elif len(direct_elements) == 1:
+                        # Single element - check if it has nested objects or is a simple object
+                        nested_element = direct_elements[0]
                         if nested_element.find(nested_object_type) is not None:
-                            # List of objects
+                            # List of objects (e.g., LeagueList/League)
                             nested_objects = []
                             for nested_obj in element.findall(f'{field_name}/{nested_object_type}'):
                                 parsed_nested_obj = parse_nested_structure(nested_obj, nested_object_definitions)
@@ -129,10 +138,18 @@ def parse_nested_structure(element, field_definitions):
                         attr_name = field_name[1:]  # Remove @
                         parsed_obj[attr_name] = parse_attribute_value(element, attr_name, field_type)
                     else:
-                        # Regular element
-                        field_element = element.find(field_name)
-                        if field_element is not None:
-                            parsed_obj[field_name] = parse_element_value(field_element, field_type)
+                        # Regular element - check if there are multiple elements
+                        field_elements = element.findall(field_name)
+                        if len(field_elements) > 1:
+                            # Multiple elements - parse each one
+                            parsed_values = []
+                            for field_element in field_elements:
+                                parsed_value = parse_element_value(field_element, field_type)
+                                parsed_values.append(parsed_value)
+                            parsed_obj[field_name] = parsed_values
+                        elif len(field_elements) == 1:
+                            # Single element
+                            parsed_obj[field_name] = parse_element_value(field_elements[0], field_type)
                         else:
                             # Return default value based on type
                             if field_type == 'int':
