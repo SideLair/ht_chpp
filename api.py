@@ -337,7 +337,10 @@ def call_endpoint_multithread(endpoint_name, token=None, oauth=None, max_workers
         version_config = endpoint_config[latest_version]
     
     valid_parameters = version_config.get('parameters', [])
-    if param_name not in valid_parameters:
+    
+    # Allow parameters that are not in valid_parameters list (for optional parameters like userID in achievements)
+    # Only validate if the endpoint has explicit parameters defined
+    if valid_parameters and param_name not in valid_parameters:
         raise ValueError(f"Parameter '{param_name}' is not valid for endpoint '{endpoint_name}'. Valid parameters: {valid_parameters}")
     
     # Convert IDs to parameter dictionaries
