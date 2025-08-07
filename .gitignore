@@ -1,0 +1,7 @@
+# Development files
+ht_api_tester.ipynb
+
+# Environment variables
+.env
+*.pyc
+__pycache__/

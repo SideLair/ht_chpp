@@ -1,0 +1,56 @@
+# Endpoints
+worlddetails:
+  version:
+    "1.9":
+      params:
+        - includeRegions
+        - countryID
+        - leagueID
+      fields:
+        League:
+          - LeagueID: int
+          - LeagueName: str
+          - Season: int
+          - SeasonOffset: int
+          - MatchRound: int
+          - ShortName: str
+          - Continent: str
+          - ZoneName: str
+          - EnglishName: str
+          - LanguageId: int
+          - LanguageName: str
+          - Country: list
+          - Cups: list
+          - NationalTeamId: int
+          - U20teamId: int
+          - ActiveTeams: int
+          - ActiveUsers: int
+          - WaitingUsers: int
+          - TrainingDate: str
+          - EconomyDate: str
+          - CupMatchDate: str
+          - SeriesMatchDate: str
+          - Sequence1: str
+          - Sequence2: str
+          - Sequence3: str
+          - Sequence5: str
+          - Sequence7: str
+          - NumberOfLevels: int
+      collections:
+        Country:
+          - Available: bool
+          - CountryID: int
+          - CountryName: str
+          - CurrencyName: str
+          - CurrencyRate: float
+          - CountryCode: str
+          - DateFormat: str
+          - TimeFormat: str
+        Cups:
+          - CupID: int
+          - CupName: str
+          - CupLeagueLevel: int
+          - CupLevel: int
+          - CupLevelIndex: int
+          - MatchRound: int
+          - MatchRoundsLeft: int
