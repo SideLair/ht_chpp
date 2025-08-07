@@ -1,28 +1,18 @@
-# ht_api
+# ht_chpp
 
 A Python library for Hattrick API with YAML configuration and OAuth authentication.
 
 ## Features
 
-- **YAML-based endpoint configuration** - Easy to add new endpoints
+- **YAML-based endpoint configuration** - Easy to add new endpoints with nested structure
 - **OAuth authentication** - Secure API access
-- **Automatic XML parsing** - Structured data output
-- **Multi-threading support** - Parallel API calls
+- **Automatic XML parsing** - Structured data output with metadata
+- **Multi-threading support** - Parallel API calls (up to 50 concurrent requests)
 - **Type-safe parsing** - Automatic data type conversion
+- **Unified response structure** - All endpoints return HattrickData with metadata
+- **Nested schema definition** - XML structure directly mapped in YAML
 
 ## Installation
-
-### From PyPI (when published)
-```bash
-pip install ht-chpp
-```
-
-### From source
-```bash
-git clone https://github.com/yourusername/ht-chpp.git
-cd ht-chpp
-pip install -e .
-```
 
 ### Development installation
 ```bash
@@ -48,47 +38,87 @@ HT_OAUTH_TOKEN_SECRET=your_oauth_token_secret_here
 
 ## Usage
 
+### Authentication
+
+All API calls require OAuth authentication. First, get your OAuth client and token:
+
+```python
+from ht_chpp import get_ht_oauth
+
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+```
+
+**Note:** Make sure your `.env` file is properly configured with your Hattrick API credentials.
+
 ### Basic Usage
 
 ```python
-from auth import get_ht_oauth
-from ht_api import call_endpoint
+from ht_chpp import get_ht_oauth, call_endpoint
 
 # Get OAuth client and token
 oauth, token = get_ht_oauth()
 
-# Call API endpoint
+# Call API endpoint (uses latest version automatically)
 leagues = call_endpoint('worlddetails', token=token, oauth=oauth)
-print(f"Found {len(leagues)} leagues")
+print(f"Found {len(leagues[0]['LeagueList'])} leagues")
+
+# Or specify a specific version
+leagues_v1_9 = call_endpoint('worlddetails', version="1.9", token=token, oauth=oauth)
 ```
 
 ### Specific League
 
 ```python
-# Get specific league
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
+# Get specific league (uses latest version automatically)
 league = call_endpoint('worlddetails', leagueID=1, token=token, oauth=oauth)
-print(f"League: {league[0]['LeagueName']}")
+print(f"League: {league[0]['LeagueList'][0]['LeagueName']}")
+
+# Get league levels for Sweden
+league_levels = call_endpoint('leaguelevels', LeagueID=1, token=token, oauth=oauth)
+print(f"League has {len(league_levels[0]['LeagueLevelList'])} levels")
 ```
 
 ### Parallel API Calls
 
 ```python
-from ht_api import call_endpoints_multithread
+from ht_chpp import call_endpoints_multithread
 
-# Parallel calls
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
+# Parallel calls (up to 50 concurrent requests)
 results = call_endpoints_multithread([
     ('worlddetails', {}),
-    ('worlddetails', {'leagueID': 1})
+    ('worlddetails', {'leagueID': 1}),
+    ('leaguelevels', {'LeagueID': 1})
 ], token=token, oauth=oauth)
+
+# Custom number of workers
+results = call_endpoints_multithread([
+    ('worlddetails', {}),
+    ('leaguelevels', {'LeagueID': 1})
+], token=token, oauth=oauth, max_workers=10)
 ```
 
 ### Data Structure
 
 ```python
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
 leagues = call_endpoint('worlddetails', token=token, oauth=oauth)
 
+# Access metadata
+hattrick_data = leagues[0]
+print(f"API Version: {hattrick_data['Version']}")
+print(f"Fetched: {hattrick_data['FetchedDate']}")
+
 # Access league data
-first_league = leagues[0]
+first_league = hattrick_data['LeagueList'][0]
 print(f"League: {first_league['LeagueName']}")
 print(f"Country: {first_league['Country'][0]['CountryName']}")
 print(f"Cups: {len(first_league['Cups'])} cups")
@@ -102,23 +132,29 @@ print(f"Cups: {len(first_league['Cups'])} cups")
 achievements:
   version:
     "1.9":
-      params:
+      parameters:
         - userID
-      fields:
-        Achievement:
-          - AchievementTypeID: int
-          - AchievementText: str
-          - CategoryID: int
-      collections:
-        Achievement:
-          - AchievementTypeID: int
-          - AchievementText: str
-          - CategoryID: int
+      schema:
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
+          - AchievementList:
+              Achievement:
+                - AchievementTypeID: int
+                - AchievementText: str
+                - CategoryID: int
 ```
+
+**Note:** The schema structure directly mirrors the XML structure. Nested objects are automatically parsed as lists when multiple elements exist.
 
 2. **Use the endpoint:**
 
 ```python
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
 achievements = call_endpoint('achievements', userID=123, token=token, oauth=oauth)
 ```
 
@@ -128,19 +164,27 @@ achievements = call_endpoint('achievements', userID=123, token=token, oauth=oaut
 endpoint_name:
   version:
     "1.9":
-      params:           # API parameters
+      parameters:       # API parameters
         - param1
         - param2
-      fields:           # Main object fields
-        MainObject:
-          - Field1: int
-          - Field2: str
-          - Collection: list
-      collections:      # Collection definitions
-        Collection:
-          - ItemField1: int
-          - ItemField2: str
+      schema:           # Data structure (HattrickData)
+        HattrickData:
+          - FileName: str
+          - Version: str
+          - UserID: int
+          - FetchedDate: str
+          - Collection:
+              Item:
+                - ItemField1: int
+                - ItemField2: str
 ```
+
+### Nested Structure Benefits
+
+- **Intuitive mapping** - YAML structure matches XML structure
+- **No separate collections** - Everything defined inline
+- **Flexible nesting** - Support for complex XML hierarchies
+- **Cleaner code** - No hardcoded collection references
 
 ## Data Types
 
@@ -148,7 +192,24 @@ endpoint_name:
 - `float` - Float values (handles comma decimal separators)
 - `str` - String values
 - `bool` - Boolean values (for XML attributes)
-- `list` - Collections of objects
+- Nested objects - Automatically parsed as lists when multiple elements exist
+
+## Response Structure
+
+All endpoints return data wrapped in `HattrickData` with metadata:
+
+```python
+[
+  {
+    "FileName": "worlddetails.xml",
+    "Version": "1.9", 
+    "UserID": 4351891,
+    "FetchedDate": "2025-08-07 16:23:51",
+    "LeagueList": [...],  # Actual data
+    # ... other fields
+  }
+]
+```
 
 ## Error Handling
 

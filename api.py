@@ -70,64 +70,101 @@ def load_endpoints_config():
     with open(config_path, 'r', encoding='utf-8') as file:
         return yaml.safe_load(file)
 
-# Parse single object by definition
-def parse_object_by_definition(obj_element, field_definitions):
-    """Parses single object by field definitions."""
+def get_latest_version(endpoint_name):
+    """Gets the latest version for an endpoint from YAML configuration."""
+    config = load_endpoints_config()
+    
+    if endpoint_name not in config:
+        raise ValueError(f"Endpoint '{endpoint_name}' is not defined in YAML configuration")
+    
+    endpoint_config = config[endpoint_name]
+    
+    # Check if endpoint has version structure
+    if 'version' in endpoint_config:
+        # Get all available versions and return the highest
+        versions = list(endpoint_config['version'].keys())
+        # Convert to float for proper comparison (handle "1.9" vs "1.10")
+        versions_float = [float(v) for v in versions]
+        latest_version = str(max(versions_float))
+        return latest_version
+    else:
+        # Old structure without versioning
+        return "1.0"  # Default fallback
+
+def parse_nested_structure(element, field_definitions):
+    """Recursively parses nested structure according to field definitions."""
     parsed_obj = {}
     
     for field_def in field_definitions:
-        for field_name, field_type in field_def.items():
+        for field_name, field_config in field_def.items():
             try:
-                # Try to find as element
-                field_element = obj_element.find(field_name)
-                if field_element is not None and field_element.text:
-                    parsed_obj[field_name] = parse_element_value(field_element, field_type)
+                if isinstance(field_config, dict):
+                    # Nested structure (e.g., LeagueList: { League: [...] })
+                    nested_element = element.find(field_name)
+                    if nested_element is not None:
+                        # Get the nested object type (e.g., 'League' from { League: [...] })
+                        nested_object_type = list(field_config.keys())[0]
+                        nested_object_definitions = field_config[nested_object_type]
+                        
+                        # Check if this is a single object (like Country) or a list
+                        if nested_element.find(nested_object_type) is not None:
+                            # List of objects
+                            nested_objects = []
+                            for nested_obj in element.findall(f'{field_name}/{nested_object_type}'):
+                                parsed_nested_obj = parse_nested_structure(nested_obj, nested_object_definitions)
+                                nested_objects.append(parsed_nested_obj)
+                            parsed_obj[field_name] = nested_objects
+                        else:
+                            # Single object (like Country with attributes)
+                            parsed_nested_obj = parse_nested_structure(nested_element, nested_object_definitions)
+                            parsed_obj[field_name] = [parsed_nested_obj]
+                    else:
+                        parsed_obj[field_name] = []
                 else:
-                    # Try to find as attribute
-                    parsed_obj[field_name] = parse_attribute_value(obj_element, field_name, field_type)
+                    # Simple field with type
+                    field_type = field_config
+                    
+                    # Check if it's an attribute (starts with @)
+                    if field_name.startswith('@'):
+                        attr_name = field_name[1:]  # Remove @
+                        parsed_obj[attr_name] = parse_attribute_value(element, attr_name, field_type)
+                    else:
+                        # Regular element
+                        field_element = element.find(field_name)
+                        if field_element is not None:
+                            parsed_obj[field_name] = parse_element_value(field_element, field_type)
+                        else:
+                            # Return default value based on type
+                            if field_type == 'int':
+                                parsed_obj[field_name] = 0
+                            elif field_type == 'float':
+                                parsed_obj[field_name] = 0.0
+                            elif field_type == 'bool':
+                                parsed_obj[field_name] = False
+                            elif field_type == 'str':
+                                parsed_obj[field_name] = ''
+                            else:
+                                parsed_obj[field_name] = ''
+                                
             except Exception as e:
                 print(f"Error parsing field {field_name}: {e}")
                 # Return default value based on type
-                if field_type == 'int':
-                    parsed_obj[field_name] = 0
-                elif field_type == 'float':
-                    parsed_obj[field_name] = 0.0
-                elif field_type == 'bool':
-                    parsed_obj[field_name] = False
-                elif field_type == 'list':
+                if isinstance(field_config, dict):
                     parsed_obj[field_name] = []
                 else:
-                    parsed_obj[field_name] = ''
+                    field_type = field_config
+                    if field_type == 'int':
+                        parsed_obj[field_name] = 0
+                    elif field_type == 'float':
+                        parsed_obj[field_name] = 0.0
+                    elif field_type == 'bool':
+                        parsed_obj[field_name] = False
+                    elif field_type == 'str':
+                        parsed_obj[field_name] = ''
+                    else:
+                        parsed_obj[field_name] = ''
     
     return parsed_obj
-
-# Parse Country object (special case)
-def parse_country_collection(league_element, country_definitions):
-    """Parses Country collection (special case - Country is directly in League)."""
-    country_obj = league_element.find('Country')
-    if country_obj is not None:
-        return [parse_object_by_definition(country_obj, country_definitions)]
-    return []
-
-# Parse standard collection
-def parse_standard_collection(parent_element, collection_name, object_definitions):
-    """Parses standard collection of objects (e.g., Cups)."""
-    list_object_type = collection_name.rstrip('s')  # Cups -> Cup
-    nested_objects = []
-    
-    for nested_obj in parent_element.findall(f'.//{collection_name}/{list_object_type}'):
-        parsed_obj = parse_object_by_definition(nested_obj, object_definitions)
-        nested_objects.append(parsed_obj)
-    
-    return nested_objects
-
-# Parse collection by type
-def parse_collection(parent_element, collection_name, collection_definitions):
-    """Parses collection by its type."""
-    if collection_name == 'Country':
-        return parse_country_collection(parent_element, collection_definitions)
-    else:
-        return parse_standard_collection(parent_element, collection_name, collection_definitions)
 
 # Main XML parsing function
 def parse_xml_response(xml_text, endpoint_config):
@@ -144,51 +181,15 @@ def parse_xml_response(xml_text, endpoint_config):
     root = ET.fromstring(xml)
     
     results = []
-    fields_config = endpoint_config['fields']
-    collections_config = endpoint_config.get('collections', {})
+    schema_config = endpoint_config['schema']
     
-    # Find main object (first in configuration, e.g., 'League')
-    main_object_type = list(fields_config.keys())[0]
-    main_fields = fields_config[main_object_type]
+    # Get main object type (first in configuration, e.g., 'HattrickData')
+    main_object_type = list(schema_config.keys())[0]
+    main_fields = schema_config[main_object_type]
     
-    # Find all main objects in XML
-    for main_obj in root.findall(f'.//{main_object_type}'):
-        parsed_main_obj = {}
-        
-        # Parse main fields
-        for field_def in main_fields:
-            for field_name, field_type in field_def.items():
-                try:
-                    if field_type == 'list':
-                        # Parse collection
-                        if field_name in collections_config:
-                            collection_definitions = collections_config[field_name]
-                        else:
-                            raise ValueError(f"Collection '{field_name}' is not defined in YAML configuration for endpoint")
-                        
-                        parsed_main_obj[field_name] = parse_collection(
-                            main_obj, field_name, collection_definitions
-                        )
-                    else:
-                        # Parse simple field
-                        field_element = main_obj.find(field_name)
-                        parsed_main_obj[field_name] = parse_element_value(field_element, field_type)
-                        
-                except Exception as e:
-                    print(f"Error parsing field {field_name}: {e}")
-                    # Return default value based on type
-                    if field_type == 'int':
-                        parsed_main_obj[field_name] = 0
-                    elif field_type == 'float':
-                        parsed_main_obj[field_name] = 0.0
-                    elif field_type == 'bool':
-                        parsed_main_obj[field_name] = False
-                    elif field_type == 'list':
-                        parsed_main_obj[field_name] = []
-                    else:
-                        parsed_main_obj[field_name] = ''
-        
-        results.append(parsed_main_obj)
+    # Parse the root element
+    parsed_main_obj = parse_nested_structure(root, main_fields)
+    results.append(parsed_main_obj)
     
     return results
 
@@ -229,12 +230,12 @@ def call_ht_api(endpoint, params=None, token=None, oauth=None):
     return response
 
 # Main function for calling endpoint with parsing
-def call_endpoint(endpoint_name, version="1.9", token=None, oauth=None, **kwargs):
+def call_endpoint(endpoint_name, version=None, token=None, oauth=None, **kwargs):
     """
     Calls API endpoint and returns parsed data.
     Args:
         endpoint_name (str): Endpoint name from YAML configuration
-        version (str): API version (default "1.9")
+        version (str, optional): API version (defaults to latest available version)
         token (dict): OAuth token for authentication
         oauth (OAuth): OAuth client for authentication
         **kwargs: Parameters for API call
@@ -248,14 +249,18 @@ def call_endpoint(endpoint_name, version="1.9", token=None, oauth=None, **kwargs
     
     endpoint_config = config[endpoint_name]
     
+    # If no version specified, use the latest available version
+    if version is None:
+        version = get_latest_version(endpoint_name)
+    
     # Check if requested version exists
     if 'version' in endpoint_config:
-        # Old structure (without versioning)
+        # Version structure
         if version not in endpoint_config.get('version', {}):
             raise ValueError(f"Version '{version}' is not supported for endpoint '{endpoint_name}'")
         version_config = endpoint_config['version'][version]
     else:
-        # New structure (with versioning)
+        # Old structure (without versioning)
         if version not in endpoint_config:
             raise ValueError(f"Version '{version}' is not supported for endpoint '{endpoint_name}'")
         version_config = endpoint_config[version]
@@ -266,7 +271,7 @@ def call_endpoint(endpoint_name, version="1.9", token=None, oauth=None, **kwargs
     }
     
     # Add optional parameters
-    for param in version_config.get('params', []):
+    for param in version_config.get('parameters', []):
         if param in kwargs:
             params[param] = kwargs[param]
     
@@ -281,7 +286,7 @@ def call_endpoint(endpoint_name, version="1.9", token=None, oauth=None, **kwargs
     return parse_xml_response(response.text, version_config)
 
 # Multi-thread wrapper for multiple endpoints
-def call_endpoints_multithread(endpoints_with_params, token=None, oauth=None, max_workers=5):
+def call_endpoints_multithread(endpoints_with_params, token=None, oauth=None, max_workers=50):
     """
     Parallel calls to multiple API endpoints.
     Args:
