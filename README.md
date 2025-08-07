@@ -14,10 +14,10 @@ A Python library for Hattrick API with YAML configuration and OAuth authenticati
 
 ## Available Endpoints
 
-- **worlddetails** (v1.9) - League and country information
-- **leaguelevels** (v1.0) - League level structure
 - **leaguedetails** (v1.6) - League table and team statistics
+- **leaguelevels** (v1.0) - League level structure
 - **managercompendium** (v1.5) - Manager profile and team details
+- **worlddetails** (v1.9) - League and country information
 
 ## Installation
 
@@ -112,27 +112,32 @@ manager = call_endpoint('managercompendium', userId=123456, token=token, oauth=o
 ### Parallel API Calls
 
 ```python
-from ht_chpp import call_endpoints_multithread
+from ht_chpp import call_endpoint_multithread
 
 # Get OAuth client and token
 oauth, token = get_ht_oauth()
 
-# Parallel calls (up to 50 concurrent requests)
-results = call_endpoints_multithread([
-    ('worlddetails', {}),
-    ('worlddetails', {'leagueID': 1}),
-    ('leaguelevels', {'LeagueID': 1}),
-    ('leaguedetails', {'leagueLevelUnitID': 11323}),
-    ('managercompendium', {})
-], token=token, oauth=oauth)
+# Parallel calls for same endpoint with different IDs
+# Example: Get manager data for multiple users
+results = call_endpoint_multithread('managercompendium', 
+                                   userId=[123, 456, 789, 101112], 
+                                   token=token, oauth=oauth)
+
+# Example: Get league details for multiple league units
+results = call_endpoint_multithread('leaguedetails',
+                                   leagueLevelUnitID=[11323, 11324, 11325, 11326],
+                                   token=token, oauth=oauth)
+
+# Example: Get world details for multiple leagues
+results = call_endpoint_multithread('worlddetails',
+                                   leagueID=[1, 2, 3, 4],
+                                   token=token, oauth=oauth)
 
 # Custom number of workers
-results = call_endpoints_multithread([
-    ('worlddetails', {}),
-    ('leaguelevels', {'LeagueID': 1}),
-    ('leaguedetails', {'leagueLevelUnitID': 11323}),
-    ('managercompendium', {})
-], token=token, oauth=oauth, max_workers=10)
+results = call_endpoint_multithread('managercompendium', 
+                                   userId=[123, 456, 789], 
+                                   token=token, oauth=oauth, 
+                                   max_workers=10)
 ```
 
 ### Data Structure
@@ -153,6 +158,21 @@ first_league = hattrick_data['LeagueList'][0]
 print(f"League: {first_league['LeagueName']}")
 print(f"Country: {first_league['Country'][0]['CountryName']}")
 print(f"Cups: {len(first_league['Cups'])} cups")
+
+### Parallel Data Structure
+
+```python
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
+# Parallel calls return list of results in same order as IDs list
+user_ids = [123, 456, 789]
+results = call_endpoint_multithread('managercompendium', userId=user_ids, token=token, oauth=oauth)
+
+# Each result has same structure as single call
+for i, result in enumerate(results):
+    manager_data = result[0]  # Same as single call result
+    print(f"User {user_ids[i]}: {manager_data['Manager'][0]['Loginname']}")
 ```
 
 ## Adding New Endpoints
@@ -253,6 +273,22 @@ except ValueError as e:
     print(f"Configuration error: {e}")
 except Exception as e:
     print(f"API error: {e}")
+```
+
+### Parameter Validation
+
+The multithread function validates parameters against the YAML configuration:
+
+```python
+try:
+    # This will raise an error - 'invalidParam' is not a valid parameter
+    results = call_endpoint_multithread('managercompendium', 
+                                       invalidParam=[123, 456], 
+                                       token=token, oauth=oauth)
+except ValueError as e:
+    print(f"Parameter error: {e}")
+    # Output: Parameter 'invalidParam' is not valid for endpoint 'managercompendium'. 
+    # Valid parameters: ['userId']
 ```
 
 

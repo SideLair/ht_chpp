@@ -91,6 +91,8 @@ def get_latest_version(endpoint_name):
         # Old structure without versioning
         return "1.0"  # Default fallback
 
+
+
 def parse_nested_structure(element, field_definitions):
     """Recursively parses nested structure according to field definitions."""
     parsed_obj = {}
@@ -302,21 +304,48 @@ def call_endpoint(endpoint_name, version=None, token=None, oauth=None, **kwargs)
     # Parse response
     return parse_xml_response(response.text, version_config)
 
-# Multi-thread wrapper for multiple endpoints
-def call_endpoints_multithread(endpoints_with_params, token=None, oauth=None, max_workers=50):
+# Multi-thread wrapper for single endpoint with different IDs
+def call_endpoint_multithread(endpoint_name, token=None, oauth=None, max_workers=50, **kwargs):
     """
-    Parallel calls to multiple API endpoints.
+    Parallel calls to single API endpoint with different IDs.
     Args:
-        endpoints_with_params (list): List of (endpoint_name, params_dict) tuples
+        endpoint_name (str): Endpoint name to call
         token (dict): OAuth token for authentication
         oauth (OAuth): OAuth client for authentication
         max_workers (int): Number of threads
+        **kwargs: Parameter name and list of IDs (e.g., userId=[123, 456, 789])
     Returns:
-        list: Call results
+        list: Call results in same order as IDs list
     """
+    # kwargs bude obsahovat např. {'userId': [123, 456, 789]}
+    if not kwargs:
+        raise ValueError("Must provide parameter with list of IDs (e.g., userId=[123, 456, 789])")
+    
+    param_name, ids_list = list(kwargs.items())[0]  # První parametr
+    
+    # Validate that parameter exists for this endpoint
+    config = load_endpoints_config()
+    if endpoint_name not in config:
+        raise ValueError(f"Endpoint '{endpoint_name}' is not defined in YAML configuration")
+    
+    endpoint_config = config[endpoint_name]
+    latest_version = get_latest_version(endpoint_name)
+    
+    if 'version' in endpoint_config:
+        version_config = endpoint_config['version'][latest_version]
+    else:
+        version_config = endpoint_config[latest_version]
+    
+    valid_parameters = version_config.get('parameters', [])
+    if param_name not in valid_parameters:
+        raise ValueError(f"Parameter '{param_name}' is not valid for endpoint '{endpoint_name}'. Valid parameters: {valid_parameters}")
+    
+    # Convert IDs to parameter dictionaries
+    params_list = [{param_name: id_value} for id_value in ids_list]
+    
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = []
-        for endpoint_name, params in endpoints_with_params:
+        for params in params_list:
             future = executor.submit(call_endpoint, endpoint_name, token=token, oauth=oauth, **params)
             futures.append(future)
         
