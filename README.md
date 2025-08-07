@@ -14,6 +14,7 @@ A Python library for Hattrick API with YAML configuration and OAuth authenticati
 
 ## Available Endpoints
 
+- **achievements** (v1.2) - User achievements and statistics
 - **leaguedetails** (v1.6) - League table and team statistics
 - **leaguelevels** (v1.0) - League level structure
 - **managercompendium** (v1.5) - Manager profile and team details
@@ -109,6 +110,38 @@ print(f"Country: {manager[0]['Manager'][0]['Country'][0]['CountryName']}")
 manager = call_endpoint('managercompendium', userId=123456, token=token, oauth=oauth)
 ```
 
+### User Achievements
+
+```python
+# Get OAuth client and token
+oauth, token = get_ht_oauth()
+
+# Get achievements for current user (uses latest version automatically)
+achievements = call_endpoint('achievements', token=token, oauth=oauth)
+print(f"Total achievements: {len(achievements[0]['AchievementList'])}")
+print(f"Max points: {achievements[0]['MaxPoints']}")
+
+# Get achievements for specific user (userID parameter is optional)
+achievements = call_endpoint('achievements', userID=123456, token=token, oauth=oauth)
+
+# Access achievement details
+for achievement in achievements[0]['AchievementList']:
+    print(f"Achievement: {achievement['AchievementTitle']}")
+    print(f"Points: {achievement['Points']}")
+    print(f"Category: {achievement['CategoryID']}")
+    print(f"Date: {achievement['EventDate']}")
+
+# Get achievements for multiple users in parallel
+results = call_endpoint_multithread('achievements', 
+                                   userID=[123456, 789012, 345678], 
+                                   token=token, oauth=oauth)
+
+for i, result in enumerate(results):
+    user_id = [123456, 789012, 345678][i]
+    achievement_count = len(result[0]['AchievementList'])
+    max_points = result[0]['MaxPoints']
+    print(f"User {user_id}: {achievement_count} achievements, {max_points} max points")
+
 ### Parallel API Calls
 
 ```python
@@ -131,6 +164,11 @@ results = call_endpoint_multithread('leaguedetails',
 # Example: Get world details for multiple leagues
 results = call_endpoint_multithread('worlddetails',
                                    leagueID=[1, 2, 3, 4],
+                                   token=token, oauth=oauth)
+
+# Example: Get achievements for multiple users
+results = call_endpoint_multithread('achievements',
+                                   userID=[123456, 789012, 345678],
                                    token=token, oauth=oauth)
 
 # Custom number of workers
