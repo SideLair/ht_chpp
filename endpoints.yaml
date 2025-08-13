@@ -39,7 +39,7 @@ leaguedetails:
     "1.6":
       parameters:
         - leagueLevelUnitID
-      schema:
+      api_schema:
         HattrickData:
           - FileName: str
           - Version: str
@@ -68,6 +68,40 @@ leaguedetails:
                 - Won: int
                 - Draws: int
                 - Lost: int
+      output_schema:
+        tables:
+          teams:
+            source_path: "Team"
+            fields:
+              - LeagueID
+              - LeagueName
+              - LeagueLevel
+              - MaxLevel
+              - LeagueLevelUnitID
+              - LeagueLevelUnitName
+              - CurrentMatchRound
+              - Rank
+              - UserId
+              - TeamID
+              - TeamName
+              - Position
+              - PositionChange
+              - Matches
+              - GoalsFor
+              - GoalsAgainst
+              - Points
+              - Won
+              - Draws
+              - Lost
+            parent_fields:
+              - LeagueID
+              - LeagueName
+              - LeagueLevel
+              - MaxLevel
+              - LeagueLevelUnitID
+              - LeagueLevelUnitName
+              - CurrentMatchRound
+              - Rank
 
 # League Levels endpoint
 leaguelevels:
