@@ -127,23 +127,9 @@ class GenericProcessor(BaseProcessor):
         if not source_path:
             return []
             
-        # Navigate to source data
-        current_data = raw_data
         path_parts = source_path.split('.')
         
-        for part in path_parts:
-            if part in current_data:
-                current_data = current_data[part]
-            else:
-                logger.warning(f"Path part '{part}' not found in data")
-                return []
-        
-        # Ensure we have a list
-        if not isinstance(current_data, list):
-            logger.warning(f"Data at path '{source_path}' is not a list")
-            return []
-        
-        # Handle nested extraction (e.g., Country, Cups from League)
+        # Handle nested extraction first (e.g., LeagueList.Country, LeagueList.Cups)
         if len(path_parts) > 1:
             # We're extracting nested data (like countries from leagues)
             parent_data = raw_data
@@ -154,10 +140,20 @@ class GenericProcessor(BaseProcessor):
             if isinstance(parent_data, list):
                 for parent_record in parent_data:
                     nested_field = path_parts[-1]
-                    nested_data = parent_record.get(nested_field, [])
+                    nested_data = parent_record.get(nested_field)
                     
-                    if isinstance(nested_data, list):
-                        for nested_record in nested_data:
+                    if nested_data is not None:
+                        # Handle both single objects and arrays
+                        if isinstance(nested_data, list):
+                            # Array of nested objects (e.g., Cups)
+                            for nested_record in nested_data:
+                                # Add foreign key from parent if specified
+                                if foreign_key and foreign_key in parent_record:
+                                    nested_record[foreign_key] = parent_record[foreign_key]
+                                extracted_records.append(nested_record)
+                        elif isinstance(nested_data, dict):
+                            # Single nested object (e.g., Country)
+                            nested_record = nested_data.copy()
                             # Add foreign key from parent if specified
                             if foreign_key and foreign_key in parent_record:
                                 nested_record[foreign_key] = parent_record[foreign_key]
@@ -165,5 +161,6 @@ class GenericProcessor(BaseProcessor):
             
             return extracted_records
         else:
-            # Simple extraction from top level
+            # Simple extraction from top level (e.g., just "LeagueList")
+            current_data = raw_data.get(source_path, [])
             return current_data if isinstance(current_data, list) else []
