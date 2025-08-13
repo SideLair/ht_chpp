@@ -89,9 +89,10 @@ class GenericProcessor(BaseProcessor):
             source_path = table_config.get('source_path', '')
             fields = table_config.get('fields', [])
             foreign_key = table_config.get('foreign_key')
+            parent_fields = table_config.get('parent_fields', [])
             
             # Extract data from source path
-            table_data = self._extract_data_from_path(raw_data, source_path, foreign_key)
+            table_data = self._extract_data_from_path(raw_data, source_path, foreign_key, parent_fields)
             
             # Create schema for this table
             table_schema = create_table_schema(fields, api_schema, self.config)
@@ -111,7 +112,8 @@ class GenericProcessor(BaseProcessor):
         self, 
         raw_data: Dict[str, Any], 
         source_path: str, 
-        foreign_key: Optional[str] = None
+        foreign_key: Optional[str] = None,
+        parent_fields: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Extract data from nested structure using dot notation path.
@@ -120,6 +122,7 @@ class GenericProcessor(BaseProcessor):
             raw_data: Source data
             source_path: Dot notation path (e.g., "LeagueList" or "LeagueList.Country")
             foreign_key: Foreign key field to add from parent
+            parent_fields: Fields to inject from top-level data into extracted records
             
         Returns:
             List of records for this table
@@ -128,6 +131,7 @@ class GenericProcessor(BaseProcessor):
             return []
             
         path_parts = source_path.split('.')
+        parent_fields = parent_fields or []
         
         # Handle nested extraction first (e.g., LeagueList.Country, LeagueList.Cups)
         if len(path_parts) > 1:
@@ -163,4 +167,19 @@ class GenericProcessor(BaseProcessor):
         else:
             # Simple extraction from top level (e.g., just "LeagueList")
             current_data = raw_data.get(source_path, [])
-            return current_data if isinstance(current_data, list) else []
+            if not isinstance(current_data, list):
+                return []
+            
+            # Inject parent fields if specified
+            if parent_fields:
+                extracted_records = []
+                for record in current_data:
+                    record_copy = record.copy()
+                    # Add parent fields from top-level raw_data
+                    for field in parent_fields:
+                        if field in raw_data:
+                            record_copy[field] = raw_data[field]
+                    extracted_records.append(record_copy)
+                return extracted_records
+            else:
+                return current_data

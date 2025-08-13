@@ -75,7 +75,7 @@ leaguelevels:
     "1.0":
       parameters:
         - LeagueID
-      schema:
+      api_schema:
         HattrickData:
           - FileName: str
           - Version: str
@@ -95,6 +95,27 @@ leaguelevels:
                 - NrOfQualificationPromotionSlotsPerSeries: int
                 - NrOfDirectDemotionSlotsPerSeries: int
                 - NrOfQualificationDemotionSlotsPerSeries: int
+      output_schema:
+        tables:
+          leaguelevels:
+            source_path: "LeagueLevelList"
+            fields:
+              - LeagueID
+              - Season
+              - NrOfLeagueLevels
+              - LeagueLevel
+              - NrOfLeagueLevelUnits
+              - LeagueLevelUnitIdList
+              - NrOfTeams
+              - NrOfSharedPromotionSlotsPerSeries
+              - NrOfDirectPromotionSlotsPerSeries
+              - NrOfQualificationPromotionSlotsPerSeries
+              - NrOfDirectDemotionSlotsPerSeries
+              - NrOfQualificationDemotionSlotsPerSeries
+            parent_fields:
+              - LeagueID
+              - Season
+              - NrOfLeagueLevels
 
 # Manager Compendium endpoint
 managercompendium:
