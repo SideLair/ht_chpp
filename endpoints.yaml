@@ -14,7 +14,7 @@ endpoints:
       "1.2":
         parameters:
           - userID
-        schema:
+        api_schema:
           HattrickData:
           - FileName: str
           - Version: str
@@ -32,6 +32,25 @@ endpoints:
                 - MultiLevel: bool
                 - Rank: int
                 - NumberOfEvents: int
+        output_schema:
+          tables:
+            achievements:
+              source_path: "AchievementList"
+              fields:
+                - UserID
+                - MaxPoints
+                - AchievementTypeID
+                - AchievementTitle
+                - AchievementText
+                - CategoryID
+                - EventDate
+                - Points
+                - MultiLevel
+                - Rank
+                - NumberOfEvents
+              parent_fields:
+                - UserID
+                - MaxPoints
 
 # League Details endpoint
 leaguedetails:
