@@ -176,7 +176,7 @@ managercompendium:
     "1.5":
       parameters:
         - userId
-      schema:
+      api_schema:
         HattrickData:
           - FileName: str
           - Version: str
@@ -249,6 +249,43 @@ managercompendium:
                       - Layer:
                           Layer:
                             - Image: str
+      output_schema:
+        tables:
+          managers:
+            source_path: "Manager"
+            fields:
+              - UserId
+              - Loginname
+              - SupporterTier
+              - LanguageId
+              - LanguageName
+              - CountryId
+              - CountryName
+              - CurrencyName
+              - CurrencyRate
+              - BackgroundImage
+          teams:
+            source_path: "Manager.Teams"
+            foreign_key: "UserId"
+            fields:
+              - UserId
+              - TeamId
+              - TeamName
+              - ArenaId
+              - ArenaName
+              - LeagueId
+              - LeagueName
+              - Season
+              - CountryId
+              - CountryName
+              - LeagueLevelUnitId
+              - LeagueLevelUnitName
+              - RegionId
+              - RegionName
+              - YouthTeamId
+              - YouthTeamName
+              - YouthLeagueId
+              - YouthLeagueName
 
 # World Details endpoint
 worlddetails:
