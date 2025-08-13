@@ -1,335 +1,301 @@
-# ht_chpp
+# HT CHPP
 
-A Python library for Hattrick API with YAML configuration and OAuth authentication.
+A modern Python library for Hattrick API data processing with clean architecture, generic processors, and parquet output.
 
 ## Features
 
-- **YAML-based endpoint configuration** - Easy to add new endpoints with nested structure
-- **OAuth authentication** - Secure API access
-- **Automatic XML parsing** - Structured data output with metadata
-- **Multi-threading support** - Parallel API calls (up to 50 concurrent requests)
-- **Type-safe parsing** - Automatic data type conversion
-- **Unified response structure** - All endpoints return HattrickData with metadata
-- **Nested schema definition** - XML structure directly mapped in YAML
+- **🔧 Generic Processor System** - Single processor handles all endpoints via YAML config
+- **📋 YAML-driven Configuration** - Easy endpoint definitions with input/output schemas
+- **🔐 OAuth Authentication** - Secure Hattrick API access
+- **⚡ Async/Await Support** - Fast, non-blocking API calls
+- **📊 Parquet Output** - Type-safe data export with Polars
+- **🎯 CLI Interface** - Simple command-line processing
+- **🧪 Type Safety** - Pydantic validation + Polars schemas
 
-## Available Endpoints
+## Quick Start
 
-- **achievements** (v1.2) - User achievements and statistics
-- **leaguedetails** (v1.6) - League table and team statistics
-- **leaguelevels** (v1.0) - League level structure
-- **managercompendium** (v1.5) - Manager profile and team details
-- **worlddetails** (v1.9) - League and country information
-
-## Installation
-
-### Development installation
+### Installation
 ```bash
-git clone https://github.com/yourusername/ht-chpp.git
+git clone <your-repo>
 cd ht_chpp
 pip install -r requirements.txt
 ```
 
-## Setup
-
-1. **Copy environment template:**
+### Setup Authentication
+Create `.env` file with your Hattrick API credentials:
 ```bash
 cp .env.example .env
+# Edit .env with your credentials
 ```
 
-2. **Fill in your credentials in `.env`:**
-```env
-HT_CLIENT_ID=your_client_id_here
-HT_CLIENT_SECRET=your_client_secret_here
-HT_OAUTH_TOKEN=your_oauth_token_here
-HT_OAUTH_TOKEN_SECRET=your_oauth_token_secret_here
+### Process Data
+```bash
+# List available endpoints
+python cli.py list-endpoints
+
+# Process worlddetails for all leagues
+python cli.py process worlddetails
+
+# Process worlddetails for Sweden (LeagueID=1)
+python cli.py process worlddetails --league-id 1
+
+# Show endpoint schema
+python cli.py schema worlddetails
 ```
 
-## Usage
+## Architecture
 
-### Authentication
-
-All API calls require OAuth authentication. First, get your OAuth client and token:
-
-```python
-from ht_chpp import get_ht_oauth
-
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+```
+├── cli.py              # Command-line interface
+├── client.py           # HTTP client with OAuth
+├── config.py           # YAML configuration loader
+├── processors/         # Data processors
+│   ├── base.py         # Abstract base processor
+│   └── generic.py      # Generic YAML-driven processor
+├── utils/
+│   ├── types.py        # Type conversion utilities
+│   └── xml_parser.py   # XML parsing utilities
+└── endpoints.yaml      # Endpoint configurations
 ```
 
-**Note:** Make sure your `.env` file is properly configured with your Hattrick API credentials.
+## Available Endpoints
 
-### Basic Usage
+Current endpoints with output schema:
 
-```python
-from ht_chpp import get_ht_oauth, call_endpoint
+- **worlddetails** - League/country information → `leagues.parquet`, `countries.parquet`, `cups.parquet`
 
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+Other endpoints (API access only):
+- **achievements** - User achievements
+- **leaguedetails** - League tables  
+- **leaguelevels** - League structures
+- **managercompendium** - Manager profiles
 
-# Call API endpoint (uses latest version automatically)
-leagues = call_endpoint('worlddetails', token=token, oauth=oauth)
-print(f"Found {len(leagues[0]['LeagueList'])} leagues")
+## Usage Examples
 
-# Or specify a specific version
-leagues_v1_9 = call_endpoint('worlddetails', version="1.9", token=token, oauth=oauth)
+### CLI Usage - Complete Workflow
+
+```bash
+# 1. Setup authentication 
+cp .env.example .env
+# Edit .env with your Hattrick API credentials
+
+# 2. List available endpoints
+python cli.py list-endpoints
+
+# 3. Check endpoint schema
+python cli.py schema worlddetails
+
+# 4. Process all leagues to parquet files
+python cli.py process worlddetails
+
+# 5. Process specific league (Sweden)
+python cli.py process worlddetails --league-id 1
+
+# 6. View generated files
+ls -la data/
+# Output: leagues_20250813_143022.parquet, countries_20250813_143022.parquet, etc.
 ```
 
-### Specific League
+### Python API - Complete Example
 
 ```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+import asyncio
+import polars as pl
+from client import HTTPClient
+from config import Config
+from processors.generic import GenericProcessor
 
-# Get specific league (uses latest version automatically)
-league = call_endpoint('worlddetails', leagueID=1, token=token, oauth=oauth)
-print(f"League: {league[0]['LeagueList'][0]['LeagueName']}")
+async def main():
+    # 1. Authentication - load from .env file
+    client = HTTPClient.from_env()
+    config = Config()
+    
+    # 2. Create processor for worlddetails endpoint
+    processor = GenericProcessor('worlddetails', client=client, config=config)
+    
+    # 3. Process data to parquet files
+    async with client:
+        output_files = await processor.process_to_parquet(
+            params={'leagueID': 1},  # Sweden
+            timestamp_suffix=True
+        )
+    
+    print(f"✅ Created {len(output_files)} files:")
+    for filepath in output_files:
+        print(f"   📄 {filepath}")
+    
+    # 4. Load and analyze data
+    for filepath in output_files:
+        if filepath.exists():
+            table_name = filepath.stem.split('_')[0]  # Extract table name
+            df = pl.read_parquet(filepath)
+            
+            print(f"\n🔍 {table_name.upper()} TABLE:")
+            print(f"   Rows: {len(df)}")
+            print(f"   Columns: {df.columns}")
+            
+            if len(df) > 0:
+                print(f"   Data preview:")
+                print(df.head(3))
+            else:
+                print("   (Empty table)")
 
-# Get league levels for Sweden
-league_levels = call_endpoint('leaguelevels', LeagueID=1, token=token, oauth=oauth)
-print(f"League has {len(league_levels[0]['LeagueLevelList'])} levels")
-
-# Get details for specific league unit
-league_details = call_endpoint('leaguedetails', leagueLevelUnitID=11323, token=token, oauth=oauth)
-print(f"League: {league_details[0]['LeagueName']}")
-print(f"Teams: {len(league_details[0]['Team'])} teams")
-
-### Manager Information
-
-```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
-
-# Get manager compendium (uses latest version automatically)
-manager = call_endpoint('managercompendium', token=token, oauth=oauth)
-print(f"Manager: {manager[0]['Manager'][0]['Loginname']}")
-print(f"Team: {manager[0]['Manager'][0]['Teams'][0]['TeamName']}")
-print(f"Country: {manager[0]['Manager'][0]['Country'][0]['CountryName']}")
-
-# Get manager compendium for specific user
-manager = call_endpoint('managercompendium', userId=123456, token=token, oauth=oauth)
+# Run the async function
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### User Achievements
+### Expected Output
 
-```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+```
+✅ Created 3 files:
+   📄 data/leagues_20250813_143022.parquet
+   📄 data/countries_20250813_143022.parquet  
+   📄 data/cups_20250813_143022.parquet
 
-# Get achievements for current user (uses latest version automatically)
-achievements = call_endpoint('achievements', token=token, oauth=oauth)
-print(f"Total achievements: {len(achievements[0]['AchievementList'])}")
-print(f"Max points: {achievements[0]['MaxPoints']}")
+🔍 LEAGUES TABLE:
+   Rows: 1
+   Columns: ['LeagueID', 'LeagueName', 'Season', 'ActiveTeams', ...]
+   Data preview:
+   ┌───────────┬─────────────┬────────┬─────────────┐
+   │ LeagueID  ┆ LeagueName  ┆ Season ┆ ActiveTeams │
+   │ ---       ┆ ---         ┆ ---    ┆ ---         │
+   │ i64       ┆ str         ┆ i64    ┆ i64         │
+   ╞═══════════╪═════════════╪════════╪═════════════╡
+   │ 1         ┆ Sweden      ┆ 89     ┆ 7616        │
+   └───────────┴─────────────┴────────┴─────────────┘
 
-# Get achievements for specific user (userID parameter is optional)
-achievements = call_endpoint('achievements', userID=123456, token=token, oauth=oauth)
-
-# Access achievement details
-for achievement in achievements[0]['AchievementList']:
-    print(f"Achievement: {achievement['AchievementTitle']}")
-    print(f"Points: {achievement['Points']}")
-    print(f"Category: {achievement['CategoryID']}")
-    print(f"Date: {achievement['EventDate']}")
-
-# Get achievements for multiple users in parallel
-results = call_endpoint_multithread('achievements', 
-                                   userID=[123456, 789012, 345678], 
-                                   token=token, oauth=oauth)
-
-for i, result in enumerate(results):
-    user_id = [123456, 789012, 345678][i]
-    achievement_count = len(result[0]['AchievementList'])
-    max_points = result[0]['MaxPoints']
-    print(f"User {user_id}: {achievement_count} achievements, {max_points} max points")
-
-### Parallel API Calls
-
-```python
-from ht_chpp import call_endpoint_multithread
-
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
-
-# Parallel calls for same endpoint with different IDs
-# Example: Get manager data for multiple users
-results = call_endpoint_multithread('managercompendium', 
-                                   userId=[123, 456, 789, 101112], 
-                                   token=token, oauth=oauth)
-
-# Example: Get league details for multiple league units
-results = call_endpoint_multithread('leaguedetails',
-                                   leagueLevelUnitID=[11323, 11324, 11325, 11326],
-                                   token=token, oauth=oauth)
-
-# Example: Get world details for multiple leagues
-results = call_endpoint_multithread('worlddetails',
-                                   leagueID=[1, 2, 3, 4],
-                                   token=token, oauth=oauth)
-
-# Example: Get achievements for multiple users
-results = call_endpoint_multithread('achievements',
-                                   userID=[123456, 789012, 345678],
-                                   token=token, oauth=oauth)
-
-# Custom number of workers
-results = call_endpoint_multithread('managercompendium', 
-                                   userId=[123, 456, 789], 
-                                   token=token, oauth=oauth, 
-                                   max_workers=10)
+🔍 COUNTRIES TABLE:
+   Rows: 1
+   Columns: ['LeagueID', 'CountryID', 'CountryName', 'CurrencyName', ...]
+   Data preview:
+   ┌───────────┬───────────┬─────────────┬──────────────┐
+   │ LeagueID  ┆ CountryID ┆ CountryName ┆ CurrencyName │
+   │ ---       ┆ ---       ┆ ---         ┆ ---          │
+   │ i64       ┆ i64       ┆ str         ┆ str          │
+   ╞═══════════╪═══════════╪═════════════╪══════════════╡
+   │ 1         ┆ 1         ┆ Sweden      ┆ SEK          │
+   └───────────┴───────────┴─────────────┴──────────────┘
 ```
 
-### Data Structure
+### Data Analysis Workflow
 
 ```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+import polars as pl
 
-leagues = call_endpoint('worlddetails', token=token, oauth=oauth)
+# Load generated parquet files
+leagues_df = pl.read_parquet("data/leagues_20250813_143022.parquet")
+countries_df = pl.read_parquet("data/countries_20250813_143022.parquet")
 
-# Access metadata
-hattrick_data = leagues[0]
-print(f"API Version: {hattrick_data['Version']}")
-print(f"Fetched: {hattrick_data['FetchedDate']}")
+# Basic data exploration
+print(f"Total leagues: {len(leagues_df)}")
+print(f"Schema: {dict(leagues_df.schema)}")
 
-# Access league data
-first_league = hattrick_data['LeagueList'][0]
-print(f"League: {first_league['LeagueName']}")
-print(f"Country: {first_league['Country'][0]['CountryName']}")
-print(f"Cups: {len(first_league['Cups'])} cups")
+# Data analysis with Polars
+top_leagues = (leagues_df
+    .select(['LeagueName', 'ActiveTeams', 'ActiveUsers'])
+    .sort('ActiveTeams', descending=True)
+    .head(10)
+)
+print(top_leagues)
 
-### Parallel Data Structure
+# Join with countries data
+league_countries = (leagues_df
+    .join(countries_df, on="LeagueID")
+    .select(['LeagueName', 'CountryName', 'ActiveTeams', 'CurrencyName'])
+)
+print(league_countries)
 
-```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
+# Export to different formats
+league_countries.write_csv("analysis/league_summary.csv")
+league_countries.write_json("analysis/league_summary.json")
+```
 
-# Parallel calls return list of results in same order as IDs list
-user_ids = [123, 456, 789]
-results = call_endpoint_multithread('managercompendium', userId=user_ids, token=token, oauth=oauth)
+## CLI Commands
 
-# Each result has same structure as single call
-for i, result in enumerate(results):
-    manager_data = result[0]  # Same as single call result
-    print(f"User {user_ids[i]}: {manager_data['Manager'][0]['Loginname']}")
+```bash
+# Process any endpoint with output_schema
+python cli.py process <endpoint> [options]
+
+# Available options:
+--league-id INT                 # For worlddetails
+--user-id INT                   # For achievements, managercompendium  
+--league-level-unit-id INT      # For leaguedetails
+--output-dir PATH               # Output directory (default: ./data)
+--no-timestamp                  # Disable timestamp in filenames
+
+# Utility commands
+python cli.py list-endpoints    # Show available endpoints
+python cli.py schema <endpoint> # Show endpoint schema
 ```
 
 ## Adding New Endpoints
 
-1. **Add endpoint definition to `endpoints.yaml`:**
+1. **Add configuration to `endpoints.yaml`:**
 
 ```yaml
-achievements:
+myendpoint:
   version:
-    "1.9":
+    "1.0":
       parameters:
-        - userID
-      schema:
+        - myParam
+      api_schema:
         HattrickData:
           - FileName: str
           - Version: str
-          - UserID: int
-          - FetchedDate: str
-          - AchievementList:
-              Achievement:
-                - AchievementTypeID: int
-                - AchievementText: str
-                - CategoryID: int
+          - MyData:
+              Item:
+                - ItemID: int
+                - ItemName: str
+      output_schema:
+        tables:
+          items:
+            source_path: "MyData.Item"
+            fields:
+              - ItemID
+              - ItemName
 ```
 
-**Note:** The schema structure directly mirrors the XML structure. Nested objects are automatically parsed as lists when multiple elements exist.
-
-2. **Use the endpoint:**
-
-```python
-# Get OAuth client and token
-oauth, token = get_ht_oauth()
-
-achievements = call_endpoint('achievements', userID=123, token=token, oauth=oauth)
+2. **Use via CLI:**
+```bash
+python cli.py process myendpoint --my-param 123
 ```
 
-## YAML Configuration Structure
+## YAML Configuration
 
+### Structure
 ```yaml
 endpoint_name:
   version:
-    "1.9":
-      parameters:       # API parameters
-        - param1
-        - param2
-      schema:           # Data structure (HattrickData)
-        HattrickData:
-          - FileName: str
-          - Version: str
-          - UserID: int
-          - FetchedDate: str
-          - Collection:
-              Item:
-                - ItemField1: int
-                - ItemField2: str
+    "1.0":
+      parameters: [param1, param2]    # API parameters
+      api_schema: {...}               # XML input schema
+      output_schema:                  # Parquet output config
+        tables:
+          table_name:
+            source_path: "Data.Path"  # Dot notation path
+            fields: [field1, field2]  # Field mapping
 ```
 
-### Nested Structure Benefits
-
-- **Intuitive mapping** - YAML structure matches XML structure
-- **No separate collections** - Everything defined inline
-- **Flexible nesting** - Support for complex XML hierarchies
-- **Cleaner code** - No hardcoded collection references
-
-## Data Types
-
-- `int` - Integer values
-- `float` - Float values (handles comma decimal separators)
-- `str` - String values
-- `bool` - Boolean values (for XML attributes)
-- Nested objects - Automatically parsed as lists when multiple elements exist
-
-## Response Structure
-
-All endpoints return data wrapped in `HattrickData` with metadata:
-
-```python
-[
-  {
-    "FileName": "worlddetails.xml",
-    "Version": "1.9", 
-    "UserID": 4351891,
-    "FetchedDate": "2025-08-07 16:23:51",
-    "LeagueList": [...],  # Actual data
-    # ... other fields
-  }
-]
+### Type Definitions
+```yaml
+definitions:
+  types:
+    int: "pl.Int64"
+    str: "pl.Utf8" 
+    float: "pl.Float64"
 ```
 
-## Error Handling
+## Requirements
 
-The library provides clear error messages:
-
-```python
-try:
-    leagues = call_endpoint('worlddetails', token=token, oauth=oauth)
-except ValueError as e:
-    print(f"Configuration error: {e}")
-except Exception as e:
-    print(f"API error: {e}")
-```
-
-### Parameter Validation
-
-The multithread function validates parameters against the YAML configuration:
-
-```python
-try:
-    # This will raise an error - 'invalidParam' is not a valid parameter
-    results = call_endpoint_multithread('managercompendium', 
-                                       invalidParam=[123, 456], 
-                                       token=token, oauth=oauth)
-except ValueError as e:
-    print(f"Parameter error: {e}")
-    # Output: Parameter 'invalidParam' is not valid for endpoint 'managercompendium'. 
-    # Valid parameters: ['userId']
-```
-
+- Python 3.8+
+- aiohttp (async HTTP)
+- authlib (OAuth)
+- polars (data processing)
+- pydantic (validation)
+- click (CLI)
+- pyyaml (config)
 
 ## License
 
-MIT License
+MIT License - see LICENSE file

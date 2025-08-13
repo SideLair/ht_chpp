@@ -5,3 +5,10 @@ ht_api_tester.ipynb
 .env
 *.pyc
 __pycache__/
+
+# Claude Code cache
+.claude/
+
+# downloaded data
+data/*.parquet
+data/*.csv

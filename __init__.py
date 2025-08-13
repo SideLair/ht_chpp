@@ -1,2 +1,10 @@
-from .auth import get_ht_oauth, create_ht_token
-from .api import call_endpoint, call_endpoint_multithread, call_ht_api
+"""
+HT CHPP - Clean Python library for Hattrick API access with structured data processing.
+"""
+
+from .client import HTTPClient
+from .config import Config
+from .processors.generic import GenericProcessor
+
+__version__ = "2.0.0"
+__all__ = ["HTTPClient", "Config", "GenericProcessor"]
